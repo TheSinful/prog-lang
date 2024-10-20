@@ -1,3 +1,4 @@
+use super::types::VariableName;
 use std::fmt::{Display, Formatter, Result};
 
 #[derive(PartialEq, Debug, Clone)]
@@ -9,8 +10,8 @@ pub struct Position {
 impl Position {
     pub fn new(line_number: i64, line_position: i64) -> Position {
         Position {
-            line_number: line_number,
-            line_position: line_position,
+            line_number,
+            line_position,
         }
     }
 }
@@ -24,8 +25,6 @@ impl Display for Position {
         )
     }
 }
-
-pub type VariableName = String;
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Token {
@@ -77,5 +76,3 @@ impl Token {
         }
     }
 }
-
-// set x =

@@ -1,12 +1,12 @@
-use super::{BaseLexing, BaseLexingReturn, Error, Line, Result};
-use crate::tokens::Token;
+use super::Token;
+use super::{BaseLexing, BaseLexingReturn, Error, Result};
+use crate::processing::types::Line;
 
-pub(super) struct Math;
+pub struct Math;
 
 impl Math {
     fn rules(&self, line: &Line) -> bool {
-        self.log_line(&line);
-        let operator_position = self.find_operator(&line);
+        let operator_position = self.find_operator(line);
 
         if operator_position.is_none() {
             return false;
@@ -23,18 +23,14 @@ impl Math {
         let num_1_pos = operator_pos - 1;
         let num_2_pos = operator_pos + 1;
 
-        let num_at_pos_1 = self.num_at_pos(&line, num_1_pos);
-        let num_at_pos_2 = self.num_at_pos(&line, num_2_pos);
+        let num_at_pos_1 = self.num_at_pos(line, num_1_pos);
+        let num_at_pos_2 = self.num_at_pos(line, num_2_pos);
 
         num_at_pos_1 && num_at_pos_2
     }
 
     fn num_at_pos(&self, line: &Line, pos: usize) -> bool {
-        let token = &line[pos];
-        match *token {
-            Token::Int(_, _) => true,
-            _ => false,
-        }
+        matches!(line[pos], Token::Int(_, _))
     }
 
     /// finds what position the operator is at
@@ -46,54 +42,43 @@ impl Math {
             )
         })
     }
-
-    fn log_line(&self, line: &Line) -> () {
-        let line_str: String = line
-            .iter()
-            .map(|token| format!("{}", token))
-            .collect::<Vec<String>>()
-            .join(" ");
-    }
 }
 
 impl BaseLexing for Math {
     fn is_valid_line(&self, line: &Line) -> bool {
-        if !self.is_assigning_to_variable(&line) {
-            return self.rules(&line);
+        if !self.is_assigning_to_variable(line) {
+            return self.rules(line);
         }
 
-        let var_sliced = self.slice_variable_dec(&line);
+        let var_sliced = self.slice_variable_dec(line);
 
         self.rules(&var_sliced)
     }
 
     fn execute(&self, line: &Line) -> Result<BaseLexingReturn> {
-        let final_line;
-        if self.is_assigning_to_variable(&line) {
-            final_line = self.slice_variable_dec(&line);
+        let final_line = if self.is_assigning_to_variable(line) {
+            self.slice_variable_dec(line)
         } else {
-            final_line = line.to_vec();
-        }
+            line.to_vec()
+        };
 
         let num_1_token = &final_line[0];
-        let num_1;
         let num_1_position = num_1_token.get_pos();
-        match num_1_token {
-            Token::Int(value, _) => num_1 = *value,
+        let num_1 = match num_1_token {
+            Token::Int(value, _) => value,
             _ => return Err(Error::ExpectedInt(num_1_token.clone(), num_1_position)),
-        }
+        };
 
-        let num_2;
         let num_2_token = &final_line[2];
-        match num_2_token {
-            Token::Int(value, _) => num_2 = value,
+        let num_2 = match num_2_token {
+            Token::Int(value, _) => value,
             _ => {
                 return Err(Error::ExpectedInt(
                     num_2_token.clone(),
                     num_2_token.get_pos(),
                 ))
             }
-        }
+        };
 
         let operator = &final_line[1];
         match operator {

@@ -1,6 +1,7 @@
-use crate::lexer::{self, BaseLexingReturn};
-use crate::parser::{self, Error, Parser};
-use crate::tokens::{Position, Token};
+use crate::processing::lexer;
+use crate::processing::lexer::base::BaseLexingReturn;
+use crate::processing::parser::{self, Error, Parser};
+use crate::processing::syntax_elements::{Position, Token};
 
 #[test]
 fn test_lexer_lexerize_addition() {

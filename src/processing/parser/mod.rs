@@ -1,11 +1,11 @@
-use crate::{
+use super::{
     lexer,
-    tokens::{Position, Token},
+    syntax_elements::{Position, Token},
 };
 
+use super::types::{SplitLine, TokenizedLine};
+
 pub type Result<T> = std::result::Result<T, Error>;
-pub type SplitLine = Vec<String>;
-pub type TokenizedLine = Vec<Token>;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -15,9 +15,9 @@ pub enum Error {
 
 #[derive(Default)]
 pub struct Parser {
-    pub(crate) current_line: String,
-    pub(crate) split_line: SplitLine,
-    pub(crate) tokenized_line: TokenizedLine,
+    pub(super) current_line: String,
+    pub(super) split_line: SplitLine,
+    pub(super) tokenized_line: TokenizedLine,
 }
 
 impl Parser {
@@ -32,14 +32,14 @@ impl Parser {
             let lexerize = lexer.lexerize(_tokenized);
             match lexerize {
                 Ok(_) => continue,
-                Err(e) => println!("{}", e.to_string()),
+                Err(e) => println!("{}", e),
             }
         }
 
         Ok(())
     }
 
-    pub fn separate_to_lines(&mut self, body: &str) -> Vec<String> {
+    fn separate_to_lines(&mut self, body: &str) -> Vec<String> {
         let lines: Vec<String> = body.lines().map(|line| line.to_string()).collect();
         lines
     }
@@ -49,18 +49,14 @@ impl Parser {
     /// EXAMPLE:
     ///     "let x = 1"
     ///     ["let", "x", "=", "1"]
-    pub(crate) fn split(&mut self) -> SplitLine {
+    pub(super) fn split(&mut self) -> SplitLine {
         self.current_line
             .split(' ')
             .map(|s| s.to_string())
             .collect()
     }
 
-    pub(crate) fn tokenize(
-        &mut self,
-        split_line: SplitLine,
-        line_number: i64,
-    ) -> Result<TokenizedLine> {
+    pub(super) fn tokenize(&mut self, split_line: SplitLine, line_number: i64) -> Result<TokenizedLine> {
         let mut t: TokenizedLine = Vec::new();
 
         for (index, token) in split_line.iter().enumerate() {
