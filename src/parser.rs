@@ -1,8 +1,11 @@
-use crate::tokens::Token;
+use crate::{
+    lexer,
+    tokens::{Position, Token},
+};
 
 pub type Result<T> = std::result::Result<T, Error>;
-pub type SplitBody = Vec<String>;
-pub type TokenizedBody = Vec<Token>;
+pub type SplitLine = Vec<String>;
+pub type TokenizedLine = Vec<Token>;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -12,18 +15,33 @@ pub enum Error {
 
 #[derive(Default)]
 pub struct Parser {
-    pub(crate) current_body: String,
-    pub(crate) split_body: SplitBody,
-    pub(crate) tokenized_body: TokenizedBody,
+    pub(crate) current_line: String,
+    pub(crate) split_line: SplitLine,
+    pub(crate) tokenized_line: TokenizedLine,
 }
 
 impl Parser {
-    pub fn parse(&mut self, body: String) -> Result<()> {
-        self.current_body = body;
-        self.split()?;
-        self.tokenize()?;
+    pub fn parse(&mut self, body: &str) -> Result<()> {
+        let lines = self.separate_to_lines(body);
+        let lexer = lexer::Lexer::default();
+
+        for (line_number, line) in lines.iter().enumerate() {
+            self.current_line = line.to_string();
+            let split = self.split();
+            let _tokenized = self.tokenize(split, line_number as i64)?;
+            let lexerize = lexer.lexerize(_tokenized);
+            match lexerize {
+                Ok(_) => continue,
+                Err(e) => println!("{}", e.to_string()),
+            }
+        }
 
         Ok(())
+    }
+
+    pub fn separate_to_lines(&mut self, body: &str) -> Vec<String> {
+        let lines: Vec<String> = body.lines().map(|line| line.to_string()).collect();
+        lines
     }
 
     /// Takes the current_body then converts it to a array of string
@@ -31,53 +49,53 @@ impl Parser {
     /// EXAMPLE:
     ///     "let x = 1"
     ///     ["let", "x", "=", "1"]
-    pub(crate) fn split(&mut self) -> Result<()> {
-        self.split_body = self
-            .current_body
+    pub(crate) fn split(&mut self) -> SplitLine {
+        self.current_line
             .split(' ')
             .map(|s| s.to_string())
-            .collect();
-
-        Ok(())
+            .collect()
     }
 
-    pub(crate) fn tokenize(&mut self) -> Result<()> {
-        let mut t = Vec::new();
+    pub(crate) fn tokenize(
+        &mut self,
+        split_line: SplitLine,
+        line_number: i64,
+    ) -> Result<TokenizedLine> {
+        let mut t: TokenizedLine = Vec::new();
 
-        for (index, token) in self.split_body.iter().enumerate() {
+        for (index, token) in split_line.iter().enumerate() {
+            let pos = Position::new(line_number, index as i64);
             match token.as_str() {
-                "+" => t.push(Token::Add),
-                "-" => t.push(Token::Subtract),
-                "/" => t.push(Token::Divide),
-                "*" => t.push(Token::Multiply),
-                "\n" => t.push(Token::Eol),
-                "//" => t.push(Token::SingleComment),
-                "set" => t.push(Token::MutVarDeclaration),
-                "const" => t.push(Token::ImmutVarDeclaration),
-                "=" => t.push(Token::Assignment),
-                _ if self.is_int(token) => t.push(Token::Int(token.parse().unwrap())),
-                _ if self.is_variable(&t) => t.push(Token::Variable(token.to_string())),
+                "+" => t.push(Token::Add(pos)),
+                "-" => t.push(Token::Subtract(pos)),
+                "/" => t.push(Token::Divide(pos)),
+                "*" => t.push(Token::Multiply(pos)),
+                "\n" => t.push(Token::Eol(pos)),
+                "//" => t.push(Token::SingleComment(pos)),
+                "set" => t.push(Token::MutVarDeclaration(pos)),
+                "const" => t.push(Token::ImmutVarDeclaration(pos)),
+                "=" => t.push(Token::Assignment(pos)),
+                _ if self.is_int(token) => t.push(Token::Int(token.parse().unwrap(), pos)),
+                _ if self.is_variable(&t) => t.push(Token::Variable(token.to_string(), pos)),
                 _ => return Err(Error::InvalidToken(token.to_string(), index.to_string())),
             }
         }
 
-        self.tokenized_body = t;
-        Ok(())
+        Ok(t)
     }
 
     fn is_int(&self, token: &str) -> bool {
         token.parse::<i32>().is_ok()
     }
 
-    fn is_variable(&self, tokens: &TokenizedBody) -> bool {
-        let last = tokens.last();
-
-        if last.clone() != Some(&Token::MutVarDeclaration)
-            && last.clone() != Some(&Token::ImmutVarDeclaration)
-        {
-            false
+    fn is_variable(&self, tokens: &TokenizedLine) -> bool {
+        if let Some(last) = tokens.last() {
+            matches!(
+                last,
+                Token::MutVarDeclaration(_) | Token::ImmutVarDeclaration(_)
+            )
         } else {
-            true
+            false
         }
     }
 }
