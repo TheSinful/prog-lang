@@ -9,7 +9,7 @@ fn test_tokenize() {
     let mut parser = Parser::default();
     parser.current_line = body;
     let split = parser.split();
-    let tokenized = parser.tokenize(split, 0).unwrap();
+    let tokenized = parser.tokenize(&split, 0).unwrap();
 
     let success: Vec<Token> = vec![
         Token::Int(1, Position::new(0, 0)),

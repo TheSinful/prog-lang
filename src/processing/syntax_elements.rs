@@ -1,14 +1,17 @@
-use super::types::VariableName;
-use std::fmt::{Display, Formatter, Result};
+use super::types::{LineNumber, VariableName};
+use std::{
+    any::{Any, TypeId},
+    fmt::{Display, Formatter, Result},
+};
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Position {
-    pub line_number: i64,
+    pub line_number: LineNumber,
     pub line_position: i64,
 }
 
 impl Position {
-    pub fn new(line_number: i64, line_position: i64) -> Position {
+    pub fn new(line_number: LineNumber, line_position: i64) -> Position {
         Position {
             line_number,
             line_position,
@@ -73,6 +76,70 @@ impl Token {
             Token::Assignment(pos) => pos.clone(),
             Token::Int(_, pos) => pos.clone(),
             Token::Variable(_, pos) => pos.clone(),
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum DataTypes {
+    Str(String),
+    Int(i32),
+    Bool(bool),
+    Float(f64),
+    Char(char),
+}
+#[derive(PartialEq, Debug, Clone)]
+pub struct Variable {
+    name: String, // for example x
+    value: Option<DataTypes>,
+    inferred_type: Option<DataTypes>,
+    mutable: bool,
+}
+
+impl Variable {
+    pub fn new<T: Any>(name: String, value: &T, mutable: bool) -> Variable {
+        let inferred_type = Self::infer_type(value);
+        let value = if inferred_type.is_none() {
+            inferred_type.clone()
+        } else {
+            None
+        };
+
+        Variable {
+            name,
+            value,
+            inferred_type,
+            mutable,
+        }
+    }
+
+    pub fn infer_type<T>(inferred: &T) -> Option<DataTypes>
+    where
+        T: Any,
+    {
+        let inferred_any = inferred as &dyn Any;
+        match inferred_any.type_id() {
+            id if id == TypeId::of::<i32>() => {
+                let value = inferred_any.downcast_ref::<i32>().unwrap();
+                Some(DataTypes::Int(*value))
+            }
+            id if id == TypeId::of::<String>() => {
+                let value = inferred_any.downcast_ref::<String>().unwrap();
+                Some(DataTypes::Str(value.clone()))
+            }
+            id if id == TypeId::of::<bool>() => {
+                let value = inferred_any.downcast_ref::<bool>().unwrap();
+                Some(DataTypes::Bool(*value))
+            }
+            id if id == TypeId::of::<f64>() => {
+                let value = inferred_any.downcast_ref::<f64>().unwrap();
+                Some(DataTypes::Float(*value))
+            }
+            id if id == TypeId::of::<char>() => {
+                let value = inferred_any.downcast_ref::<char>().unwrap();
+                Some(DataTypes::Char(*value))
+            }
+            _ => None,
         }
     }
 }

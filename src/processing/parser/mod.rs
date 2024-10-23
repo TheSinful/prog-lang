@@ -1,9 +1,10 @@
 use super::{
     lexer,
     syntax_elements::{Position, Token},
+    types::{Line, LineNumber},
 };
 
-use super::types::{SplitLine, TokenizedLine};
+use super::types::{LineSplitBody, LineTokenizedBody};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -16,20 +17,22 @@ pub enum Error {
 #[derive(Default)]
 pub struct Parser {
     pub(super) current_line: String,
-    pub(super) split_line: SplitLine,
-    pub(super) tokenized_line: TokenizedLine,
+    pub(super) split_line: LineSplitBody,
+    pub(super) tokenized_line: LineTokenizedBody,
 }
 
 impl Parser {
     pub fn parse(&mut self, body: &str) -> Result<()> {
         let lines = self.separate_to_lines(body);
-        let lexer = lexer::Lexer::default();
+        let mut lexer = lexer::Lexer::default();
 
         for (line_number, line) in lines.iter().enumerate() {
             self.current_line = line.to_string();
             let split = self.split();
-            let _tokenized = self.tokenize(split, line_number as i64)?;
-            let lexerize = lexer.lexerize(_tokenized);
+            let line_number = line_number as LineNumber;
+            let _tokenized = self.tokenize(&split, line_number)?;
+            let line = Line::new(_tokenized, line.to_string(), split, line_number);
+            let lexerize = lexer.lexerize(line);
             match lexerize {
                 Ok(_) => continue,
                 Err(e) => println!("{}", e),
@@ -49,18 +52,22 @@ impl Parser {
     /// EXAMPLE:
     ///     "let x = 1"
     ///     ["let", "x", "=", "1"]
-    pub(super) fn split(&mut self) -> SplitLine {
+    pub(super) fn split(&mut self) -> LineSplitBody {
         self.current_line
             .split(' ')
             .map(|s| s.to_string())
             .collect()
     }
 
-    pub(super) fn tokenize(&mut self, split_line: SplitLine, line_number: i64) -> Result<TokenizedLine> {
-        let mut t: TokenizedLine = Vec::new();
+    pub(super) fn tokenize(
+        &mut self,
+        split_line: &LineSplitBody,
+        line_number: LineNumber,
+    ) -> Result<LineTokenizedBody> {
+        let mut t: LineTokenizedBody = Vec::new();
 
         for (index, token) in split_line.iter().enumerate() {
-            let pos = Position::new(line_number, index as i64);
+            let pos = Position::new(line_number, index as LineNumber);
             match token.as_str() {
                 "+" => t.push(Token::Add(pos)),
                 "-" => t.push(Token::Subtract(pos)),
@@ -84,7 +91,7 @@ impl Parser {
         token.parse::<i32>().is_ok()
     }
 
-    fn is_variable(&self, tokens: &TokenizedLine) -> bool {
+    fn is_variable(&self, tokens: &LineTokenizedBody) -> bool {
         if let Some(last) = tokens.last() {
             matches!(
                 last,
