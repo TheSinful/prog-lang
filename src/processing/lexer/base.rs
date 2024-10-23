@@ -1,6 +1,9 @@
+use std::any::Any;
+
 use super::Error;
 use super::Result;
 use super::Token;
+use crate::processing::syntax_elements::DataTypes;
 use crate::processing::syntax_elements::Position;
 use crate::processing::syntax_elements::Variable;
 use crate::processing::types::Line;
@@ -36,47 +39,6 @@ pub(super) trait BaseLexing {
             .join(", ")
     }
 
-    fn get_var_name(&self, line: &Line) -> Result<String> {
-        let variable_declaration_position = line.tokenized_body.iter().position(|token| {
-            matches!(
-                token,
-                Token::MutVarDeclaration(_) | Token::ImmutVarDeclaration(_)
-            )
-        });
-
-        if variable_declaration_position.is_none() {
-            return Err(Error::UnableToFindVarName);
-        }
-
-        let variable_name_position = variable_declaration_position.unwrap() + 1;
-        let variable_name_token = &line.tokenized_body[variable_name_position];
-
-        let variable_name = match variable_name_token {
-            Token::Variable(name, _) => name,
-            other => return Err(Error::ExpectedVarName(other.clone())),
-        };
-
-        Ok(variable_name.to_string())
-    }
-
-    fn is_var_mutable(&self, line: &Line) -> bool {
-        match line.tokenized_body[0] {
-            Token::ImmutVarDeclaration(_) => true,
-            Token::MutVarDeclaration(_) => true,
-            _ => false,
-        }
-    }
-
-    /// Slices out the variable declaration out the line
-    fn slice_variable_dec(&self, line: &Line) -> LineTokenizedBody {
-        let mut new = line.tokenized_body.clone();
-
-        for i in (0..3).rev() {
-            new.remove(i);
-        }
-
-        new
-    }
 
     fn execute(&self, line: &Line) -> Result<BaseLexingReturn>;
 }

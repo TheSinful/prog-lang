@@ -1,7 +1,8 @@
 use super::{
     lexer,
-    syntax_elements::{Position, Token},
+    syntax_elements::{Position, Token, Variable},
     types::{Line, LineNumber},
+    utils::variables::{look_variable, var_exists},
 };
 
 use super::types::{LineSplitBody, LineTokenizedBody};
@@ -19,6 +20,7 @@ pub struct Parser {
     pub(super) current_line: String,
     pub(super) split_line: LineSplitBody,
     pub(super) tokenized_line: LineTokenizedBody,
+    pub(super) variables: Vec<Variable>,
 }
 
 impl Parser {
@@ -32,7 +34,7 @@ impl Parser {
             let line_number = line_number as LineNumber;
             let _tokenized = self.tokenize(&split, line_number)?;
             let line = Line::new(_tokenized, line.to_string(), split, line_number);
-            let lexerize = lexer.lexerize(line);
+            let lexerize = lexer.lexerize(line, &mut self.variables);
             match lexerize {
                 Ok(_) => continue,
                 Err(e) => println!("{}", e),
@@ -80,10 +82,15 @@ impl Parser {
                 "=" => t.push(Token::Assignment(pos)),
                 _ if self.is_int(token) => t.push(Token::Int(token.parse().unwrap(), pos)),
                 _ if self.is_variable(&t) => t.push(Token::Variable(token.to_string(), pos)),
-                _ => return Err(Error::InvalidToken(token.to_string(), index.to_string())),
+                _ => {
+                    if !var_exists(&self.variables, token.as_str()) {
+                        return Err(Error::InvalidToken(token.to_string(), index.to_string()));
+                    }
+
+                    t.push(Token::Variable(token.to_string(), pos))
+                }
             }
         }
-
         Ok(t)
     }
 

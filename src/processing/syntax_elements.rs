@@ -1,7 +1,9 @@
-use super::types::{LineNumber, VariableName};
+use super::lexer::base::BaseLexingReturn;
+use super::lexer::{Error, Result};
+use super::types::{Line, LineNumber, LineTokenizedBody, VariableName};
 use std::{
     any::{Any, TypeId},
-    fmt::{Display, Formatter, Result},
+    fmt::{Display, Formatter},
 };
 
 #[derive(PartialEq, Debug, Clone)]
@@ -45,7 +47,7 @@ pub enum Token {
 }
 
 impl Display for Token {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Token::Eol(p) => write!(f, "end of line pos: {}", p),
             Token::Add(p) => write!(f, "+ pos: {}", p),
@@ -90,30 +92,33 @@ pub enum DataTypes {
 }
 #[derive(PartialEq, Debug, Clone)]
 pub struct Variable {
-    name: String, // for example x
-    value: Option<DataTypes>,
-    inferred_type: Option<DataTypes>,
+    pub name: String,
+    pub value: DataTypes,
     mutable: bool,
 }
 
 impl Variable {
-    pub fn new<T: Any>(name: String, value: &T, mutable: bool) -> Variable {
-        let inferred_type = Self::infer_type(value);
-        let value = if inferred_type.is_none() {
-            inferred_type.clone()
-        } else {
-            None
+    pub fn new<T: Any>(
+        name: String,
+        value: &T,
+        mutable: bool,
+    ) -> Result<Variable> {
+        
+        let inferred_type = Self::convert_to_data_types(value);
+
+        let value = match inferred_type {
+            None => return Err(Error::FailedToInferType),
+            Some(i) => i,
         };
 
-        Variable {
+        Ok(Variable {
             name,
             value,
-            inferred_type,
             mutable,
-        }
+        })
     }
 
-    pub fn infer_type<T>(inferred: &T) -> Option<DataTypes>
+    pub fn convert_to_data_types<T>(inferred: &T) -> Option<DataTypes>
     where
         T: Any,
     {

@@ -6,11 +6,10 @@ use base::BaseLexingReturn;
 
 pub mod base;
 pub mod math;
-pub mod variables;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, PartialEq)]
 pub enum Error {
     #[error("Expected an int but was given a {0} at {1}")]
     ExpectedInt(Token, Position),
@@ -47,23 +46,32 @@ pub enum Error {
     /// Lexer cannot figure out what a line does
     #[error("Failed to figure out how to lexerize line #{0}!")]
     Unknown(LineNumber),
+
+    #[error("Failed to infer type")]
+    FailedToInferType,
+
+    #[error("Variable with name {0} already exists!")]
+    VariableAlreadyExists(String),
 }
 
 #[derive(Default)]
 pub struct Lexer {
     current_line: Line,
-    pub(super) variables: Vec<Variable>,
 }
 
 impl Lexer {
-    pub fn lexerize(&mut self, line: Line) -> Result<BaseLexingReturn> {
-        let math = math::Math;
+    pub fn lexerize(
+        &mut self,
+        line: Line,
+        variables: &mut Vec<Variable>,
+    ) -> Result<BaseLexingReturn> {
+        let math = math::Math::new(&variables);
 
         match math.is_valid_line(&line) {
             Ok(_) => {
                 let execute = math.execute(&line)?;
                 match &execute {
-                    BaseLexingReturn::Variable(var) => self.variables.push(var.clone()),
+                    BaseLexingReturn::Variable(var) => variables.push(var.clone()),
                     _ => {}
                 }
                 return Ok(execute);
