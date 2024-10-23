@@ -36,7 +36,7 @@ impl Parser {
             let line = Line::new(_tokenized, line.to_string(), split, line_number);
             let lexerize = lexer.lexerize(line, &mut self.variables);
             match lexerize {
-                Ok(_) => continue,
+                Ok(b) => println!("Output: {:?}", b),
                 Err(e) => println!("{}", e),
             }
         }
